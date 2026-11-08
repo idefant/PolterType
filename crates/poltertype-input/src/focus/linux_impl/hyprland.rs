@@ -5,7 +5,9 @@ use std::sync::Arc;
 use crate::focus::{CaretHint, FocusTracker, FocusedWindowGeometry};
 
 use super::atspi_caret::AtspiCaretWatcher;
-use super::hyprland_ipc::{active_window_reply, parse_active_window, parse_active_window_rect};
+use super::hyprland_ipc::{
+    active_window_reply, parse_active_window, parse_active_window_id, parse_active_window_rect,
+};
 use super::proc_exe::exe_basename_for_pid;
 use super::types::CaretSample;
 
@@ -30,6 +32,10 @@ impl FocusTracker for HyprlandFocusTracker {
         let reply = active_window_reply()?;
         let (pid, class) = parse_active_window(&reply);
         pid.and_then(exe_basename_for_pid).or(class)
+    }
+
+    fn focused_window_id(&self) -> Option<String> {
+        parse_active_window_id(&active_window_reply()?)
     }
 
     fn focused_window_geometry(&self) -> Option<FocusedWindowGeometry> {

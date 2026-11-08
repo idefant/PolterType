@@ -10,6 +10,15 @@ pub trait FocusTracker: Send + Sync {
     /// implementation is a stub.
     fn focused_exe(&self) -> Option<String>;
 
+    /// Opaque identity of the focused toplevel, independent of its title,
+    /// executable and geometry. A backend may return an empty string for
+    /// a known absence of focus; `None` means unavailable, not a transition.
+    /// Queried fresh before input and correction commands: a cached answer
+    /// could merge the first letters typed in two different windows.
+    fn focused_window_id(&self) -> Option<String> {
+        None
+    }
+
     /// Geometry of the focused window, when the backend can answer.
     /// Default `None` — callers must treat geometry as a bonus, never
     /// a given (GNOME/KDE Wayland has no path to it).

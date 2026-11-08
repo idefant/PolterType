@@ -60,6 +60,22 @@ impl FocusTracker for X11FocusTracker {
         }
     }
 
+    fn focused_window_id(&self) -> Option<String> {
+        let mut state = self.state.lock();
+        if state.is_none() {
+            *state = connect().ok();
+        }
+        let s = state.as_ref()?;
+        match first_u32_prop(s, s.root, s.net_active_window, AtomEnum::WINDOW.into()) {
+            Ok(Some(window)) if window != 0 => Some(format!("x11:{window:x}")),
+            Ok(_) => Some(String::new()),
+            Err(()) => {
+                *state = None;
+                None
+            }
+        }
+    }
+
     fn focused_window_geometry(&self) -> Option<FocusedWindowGeometry> {
         let mut state = self.state.lock();
         if state.is_none() {

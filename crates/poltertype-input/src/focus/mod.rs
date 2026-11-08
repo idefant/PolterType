@@ -4,9 +4,9 @@
 //! focused application — the path that keeps the corrector silent where
 //! the user asked for silence (see `docs/DECISIONS.md`).
 //!
-//! The trait is intentionally minimal: the executable name of the
-//! focused window is enough to match against
-//! `[exceptions].disabled_apps`.
+//! Executable names serve per-app exceptions. Backends with a reliable
+//! toplevel identity also expose it fresh, so the engine can forget the
+//! previous window's word before handling input in the next one.
 
 #![deny(unsafe_op_in_unsafe_fn)]
 

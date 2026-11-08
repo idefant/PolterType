@@ -152,7 +152,7 @@ impl WordBuffer {
     }
 
     /// Full reset to a clean, trusted state — only when the caller
-    /// knows the next word can be trusted (settings reload).
+    /// knows the old word cannot continue here (settings reload or a new window).
     pub fn reset(&mut self) {
         *self = Self::default();
     }

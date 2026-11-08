@@ -313,3 +313,75 @@ fn live_anchor_inputs_agree_on_the_focused_window() {
         std::thread::sleep(Duration::from_secs(1));
     }
 }
+
+#[test]
+fn window_identity_is_independent_of_title_and_geometry() {
+    use super::hyprland_ipc::parse_active_window_id;
+    assert_eq!(
+        parse_active_window_id(ACTIVE_WINDOW_REPLY).as_deref(),
+        Some("hyprland:55df4e97c880")
+    );
+    let renamed = ACTIVE_WINDOW_REPLY
+        .replace("kitty", "renamed")
+        .replace("11,11", "999,42");
+    assert_eq!(
+        parse_active_window_id(ACTIVE_WINDOW_REPLY),
+        parse_active_window_id(&renamed)
+    );
+    let other_window = ACTIVE_WINDOW_REPLY.replace("55df4e97c880", "55df4e97c881");
+    assert_ne!(
+        parse_active_window_id(ACTIVE_WINDOW_REPLY),
+        parse_active_window_id(&other_window)
+    );
+}
+
+#[test]
+fn window_identity_distinguishes_no_focus_from_an_unavailable_reply() {
+    use super::hyprland_ipc::parse_active_window_id;
+    assert_eq!(parse_active_window_id("Invalid"), Some(String::new()));
+    for reply in [
+        "",
+        "unknown request",
+        "Window garbage -> title:",
+        "Window 0 -> title:",
+    ] {
+        assert_eq!(parse_active_window_id(reply), None);
+    }
+}
+
+#[test]
+fn window_identity_bypasses_the_application_name_cache() {
+    struct ChangingWindow(AtomicUsize);
+    impl FocusTracker for ChangingWindow {
+        fn focused_exe(&self) -> Option<String> {
+            Some("same-app".into())
+        }
+        fn focused_window_id(&self) -> Option<String> {
+            Some(self.0.fetch_add(1, Ordering::SeqCst).to_string())
+        }
+        fn backend_name(&self) -> &'static str {
+            "changing-window"
+        }
+    }
+    let cached = CachedFocusTracker::new(
+        Box::new(ChangingWindow(AtomicUsize::new(0))),
+        Duration::from_secs(3600),
+    );
+    assert_eq!(cached.focused_window_id().as_deref(), Some("0"));
+    assert_eq!(cached.focused_window_id().as_deref(), Some("1"));
+}
+
+#[test]
+#[ignore = "requires a live Hyprland/X11 session with a focused window"]
+fn live_window_identity_is_fresh() {
+    let tracker = super::create_linux_focus_tracker(false);
+    let start = std::time::Instant::now();
+    for _ in 0..100 {
+        assert!(tracker.focused_window_id().is_some());
+    }
+    println!(
+        "backend={} fresh window samples=100 elapsed={:?}",
+        tracker.backend_name(),
+        start.elapsed()
+    );
+}

@@ -40,6 +40,10 @@ impl FocusTracker for CachedFocusTracker {
         fresh
     }
 
+    fn focused_window_id(&self) -> Option<String> {
+        self.inner.focused_window_id()
+    }
+
     fn focused_window_geometry(&self) -> Option<crate::focus::FocusedWindowGeometry> {
         // Uncached pass-through: geometry is queried once per
         // tooltip show, and a 150 ms-stale rect would misplace the

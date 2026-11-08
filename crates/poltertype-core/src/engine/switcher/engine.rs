@@ -48,6 +48,7 @@ pub struct SwitcherEngine {
     /// [`SwitcherEngine::keys_held`].
     pub(super) keys_down: Mutex<Vec<(u32, Instant)>>,
     pub(super) focus_tracker: Arc<dyn FocusTracker>,
+    pub(super) tracked_window: Mutex<Option<String>>,
     pub(super) audio: Arc<AudioPlayer>,
     pub(super) out_tx: Sender<SwitcherEvent>,
     pub(super) paused: Arc<RwLock<bool>>,
@@ -154,6 +155,7 @@ impl SwitcherEngine {
             held_modifiers: RwLock::new(Modifiers::NONE),
             keys_down: Mutex::new(Vec::new()),
             focus_tracker,
+            tracked_window: Mutex::new(None),
             audio,
             out_tx,
             paused: Arc::new(RwLock::new(start_paused)),

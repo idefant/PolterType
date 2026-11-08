@@ -280,6 +280,21 @@ mod engine_integration_tests {
         }
     }
 
+    #[derive(Default)]
+    struct MockWindowFocus(Mutex<Option<String>>);
+
+    impl poltertype_input::FocusTracker for MockWindowFocus {
+        fn focused_exe(&self) -> Option<String> {
+            Some("same-application".into())
+        }
+        fn focused_window_id(&self) -> Option<String> {
+            self.0.lock().clone()
+        }
+        fn backend_name(&self) -> &'static str {
+            "mock-window-focus"
+        }
+    }
+
     // ─── Harness ─────────────────────────────────────────────────────
 
     struct Harness {
@@ -287,6 +302,7 @@ mod engine_integration_tests {
         cmd_tx: Sender<EngineCommand>,
         out_rx: Receiver<SwitcherEvent>,
         emitter: Arc<MockEmitter>,
+        focus: Arc<MockWindowFocus>,
         switcher: Arc<MockSwitcher>,
         engine_thread: JoinHandle<()>,
         /// What the engine would have played. Nothing drains it, so a
@@ -461,6 +477,7 @@ mod engine_integration_tests {
             let (key_tx, key_rx) = crossbeam_channel::bounded::<KeyEvent>(1024);
             let (cmd_tx, cmd_rx) = crossbeam_channel::unbounded::<EngineCommand>();
             let (out_tx, out_rx) = crossbeam_channel::unbounded::<SwitcherEvent>();
+            let focus = Arc::new(MockWindowFocus::default());
             let engine = SwitcherEngine::new(EngineDeps {
                 settings: Arc::clone(&settings),
                 layouts,
@@ -473,7 +490,7 @@ mod engine_integration_tests {
                 // shipped default.
                 clipboard,
                 key_gate,
-                focus_tracker: Arc::new(NoopFocusTracker),
+                focus_tracker: focus.clone(),
                 audio: Arc::new(audio),
                 out_tx,
                 suggester,
@@ -484,6 +501,7 @@ mod engine_integration_tests {
                 cmd_tx,
                 out_rx,
                 emitter,
+                focus,
                 switcher,
                 engine_thread,
                 audio_rx,
@@ -5508,6 +5526,185 @@ mod engine_integration_tests {
             vec![GHBDSN.len() + 1],
             "the absorb deadline still bounds the wait"
         );
+    }
+
+    fn window_focus_harness() -> Harness {
+        let h = Harness::start(60_000);
+        *h.focus.0.lock() = Some("window-a".into());
+        h.cmd_tx
+            .send(EngineCommand::SetPaused(true))
+            .expect("engine alive");
+        h.cmd_tx
+            .send(EngineCommand::SetKeystreamHotkeys(KeystreamHotkeys {
+                grabbed: [None, None],
+                pause: None,
+                switch_last: Some(Binding::Mods(ModChord {
+                    mods: ModSet {
+                        shift: true,
+                        ..ModSet::NONE
+                    },
+                    double_tap: true,
+                })),
+            }))
+            .expect("engine alive");
+        h.settle();
+        h
+    }
+
+    fn double_shift(h: &Harness) {
+        h.tap(0x2A);
+        h.tap(0x2A);
+        h.settle();
+    }
+
+    #[test]
+    fn window_focus_switch_allows_the_first_unfinished_word_after_any_shortcut() {
+        for modifier in [
+            poltertype_types::Modifiers {
+                alt: true,
+                ..poltertype_types::Modifiers::NONE
+            },
+            poltertype_types::Modifiers {
+                meta: true,
+                ..poltertype_types::Modifiers::NONE
+            },
+            poltertype_types::Modifiers {
+                control: true,
+                ..poltertype_types::Modifiers::NONE
+            },
+        ] {
+            let h = window_focus_harness();
+            type_word(&h, &GHBDSN[..3]);
+            h.key_mods(0x0F, KeyDirection::Press, modifier);
+            h.key_mods(0x0F, KeyDirection::Release, modifier);
+            h.settle();
+            *h.focus.0.lock() = Some("window-b".into());
+            type_word(&h, &GHBDSN);
+            double_shift(&h);
+            assert_eq!(
+                erase_counts(&h),
+                vec![GHBDSN.len()],
+                "only the new window's word may be erased"
+            );
+        }
+    }
+
+    #[test]
+    fn window_focus_switch_discards_old_words_before_a_hotkey_command() {
+        for completed in [false, true] {
+            let h = window_focus_harness();
+            type_word(&h, &GHBDSN);
+            if completed {
+                h.tap(SPACE);
+            }
+            h.settle();
+            *h.focus.0.lock() = Some("window-b".into());
+            h.cmd_tx
+                .send(EngineCommand::SwitchLastForcefully)
+                .expect("engine alive");
+            h.settle();
+            assert!(
+                erase_counts(&h).is_empty(),
+                "an old word must never be replayed in the new window"
+            );
+        }
+    }
+
+    #[test]
+    fn window_focus_switch_needs_no_navigation_shortcut() {
+        let h = window_focus_harness();
+        type_word(&h, &GHBDSN[..3]);
+        h.settle();
+        *h.focus.0.lock() = Some("window-b".into());
+        type_word(&h, &GHBDSN);
+        double_shift(&h);
+        assert_eq!(erase_counts(&h), vec![GHBDSN.len()]);
+    }
+
+    #[test]
+    fn window_focus_same_window_keeps_the_shortcut_remainder_guard() {
+        let h = window_focus_harness();
+        type_word(&h, &GHBDSN[..3]);
+        alt_tab(&h);
+        h.settle();
+        type_word(&h, &GHBDSN);
+        double_shift(&h);
+        assert!(erase_counts(&h).is_empty());
+    }
+
+    #[test]
+    fn window_focus_unavailable_sample_does_not_split_a_word() {
+        let h = window_focus_harness();
+        type_word(&h, &GHBDSN[..3]);
+        h.settle();
+        *h.focus.0.lock() = None;
+        type_word(&h, &GHBDSN[3..]);
+        double_shift(&h);
+        assert_eq!(erase_counts(&h), vec![GHBDSN.len()]);
+    }
+
+    #[test]
+    fn window_focus_return_does_not_restore_the_old_buffer() {
+        let h = window_focus_harness();
+        type_word(&h, &GHBDSN[..3]);
+        h.settle();
+        *h.focus.0.lock() = Some("window-b".into());
+        h.tap(0x2A);
+        h.settle();
+        *h.focus.0.lock() = Some("window-a".into());
+        type_word(&h, &GHBDSN);
+        double_shift(&h);
+        assert_eq!(erase_counts(&h), vec![GHBDSN.len()]);
+    }
+
+    #[test]
+    fn window_focus_no_focused_window_breaks_the_previous_word() {
+        let h = window_focus_harness();
+        type_word(&h, &GHBDSN[..3]);
+        h.settle();
+        *h.focus.0.lock() = Some(String::new());
+        h.tap(0x2A);
+        h.settle();
+        *h.focus.0.lock() = Some("window-a".into());
+        type_word(&h, &GHBDSN);
+        double_shift(&h);
+        assert_eq!(erase_counts(&h), vec![GHBDSN.len()]);
+    }
+
+    #[test]
+    fn window_focus_switch_drops_the_old_suggestion_before_accepting() {
+        let h = suggestion_harness_with_chord(None);
+        *h.focus.0.lock() = Some("window-a".into());
+        type_word(&h, &HWLLO);
+        h.tap(SPACE);
+        let generation = ready_generation(&h);
+        h.settle();
+        *h.focus.0.lock() = Some("window-b".into());
+        h.cmd_tx
+            .send(EngineCommand::AcceptSuggestion {
+                generation,
+                index: 0,
+                from_pointer: false,
+            })
+            .expect("engine alive");
+        h.settle();
+        assert!(erase_counts(&h).is_empty());
+    }
+
+    #[test]
+    fn window_focus_switch_allows_automatic_correction_of_the_new_word() {
+        let h = window_focus_harness();
+        h.cmd_tx
+            .send(EngineCommand::SetPaused(false))
+            .expect("engine alive");
+        type_word(&h, &GHBDSN[..3]);
+        alt_tab(&h);
+        h.settle();
+        *h.focus.0.lock() = Some("window-b".into());
+        type_word(&h, &GHBDSN);
+        h.tap(SPACE);
+        h.settle();
+        assert_eq!(erase_counts(&h), vec![GHBDSN.len() + 1]);
     }
 
     /// `Alt+Tab` — the shortcut that hands the keyboard to another window.

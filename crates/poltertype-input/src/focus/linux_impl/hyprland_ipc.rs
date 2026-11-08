@@ -170,3 +170,19 @@ fn parse_pair(v: &str, sep: char) -> Option<(i64, i64)> {
     let (a, b) = v.trim().split_once(sep)?;
     Some((a.trim().parse().ok()?, b.trim().parse().ok()?))
 }
+
+/// A title change or move must not look like a different window.
+/// `Invalid` is Hyprland's known no-focus reply; malformed replies are
+/// unavailable, so an IPC failure cannot reset a word on every key.
+pub(crate) fn parse_active_window_id(reply: &str) -> Option<String> {
+    let first = reply.lines().next()?.trim();
+    if first == "Invalid" {
+        return Some(String::new());
+    }
+    let address = first.strip_prefix("Window ")?.split_once(" ->")?.0;
+    let address = address.strip_prefix("0x").unwrap_or(address);
+    let address = u64::from_str_radix(address, 16)
+        .ok()
+        .filter(|id| *id != 0)?;
+    Some(format!("hyprland:{address:x}"))
+}

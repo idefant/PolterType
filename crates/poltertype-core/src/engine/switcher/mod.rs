@@ -22,6 +22,7 @@ mod correction;
 mod decide;
 mod echo;
 mod engine;
+mod focus;
 mod run_loop;
 mod suggest_keys;
 mod suggest_trail;

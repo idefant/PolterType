@@ -55,6 +55,9 @@ impl SwitcherEngine {
                         last_event_at = Instant::now();
                         continue;
                     }
+                    if !ev.injected {
+                        self.refresh_window_context(&mut buffer);
+                    }
                     *self.held_modifiers.write() = ev.modifiers;
                     self.track_keys_down(&ev);
                     if ev.claimed {
@@ -123,6 +126,7 @@ impl SwitcherEngine {
         buffer: &mut WordBuffer,
         key_rx: &Receiver<KeyEvent>,
     ) {
+        self.refresh_window_context(buffer);
         match cmd {
             EngineCommand::SetKeystreamHotkeys(hk) => {
                 info!(?hk, "keystream hotkeys configured");
