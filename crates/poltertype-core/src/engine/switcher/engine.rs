@@ -3,7 +3,7 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::time::Instant;
 
 use crossbeam_channel::Sender;
@@ -49,6 +49,7 @@ pub struct SwitcherEngine {
     pub(super) keys_down: Mutex<Vec<(u32, Instant)>>,
     pub(super) focus_tracker: Arc<dyn FocusTracker>,
     pub(super) tracked_window: Mutex<Option<String>>,
+    pub(super) window_focus_unavailable: AtomicBool,
     pub(super) audio: Arc<AudioPlayer>,
     pub(super) out_tx: Sender<SwitcherEvent>,
     pub(super) paused: Arc<RwLock<bool>>,
@@ -156,6 +157,7 @@ impl SwitcherEngine {
             keys_down: Mutex::new(Vec::new()),
             focus_tracker,
             tracked_window: Mutex::new(None),
+            window_focus_unavailable: AtomicBool::new(false),
             audio,
             out_tx,
             paused: Arc::new(RwLock::new(start_paused)),

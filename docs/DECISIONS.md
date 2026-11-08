@@ -5124,7 +5124,6 @@ with the list even when it is missing from it.
 right by hand costs a keypress and a word destroyed costs trust. Common
 Arabic letter runs defeat it (`linux`, `debian`).
 
-
 ## 2026-11-08 — Window identity owns word tracking
 
 An unfinished-word remainder protects against converting only the tail of a

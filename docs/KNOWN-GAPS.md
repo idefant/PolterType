@@ -19,8 +19,10 @@ identity is queried when input or a correction command arrives; a round trip
 away and back with no sampled input between the transitions is not observed.
 Fields and tabs within a single toplevel, and compositor overlays that do not
 change the reported active window, are outside this reset rule. Transient
-focus-query failures preserve the last known identity. Historical platform
-validation below describes upstream releases, not new fork validation.
+focus-query failures preserve the last known identity. If a changed window is
+first identified halfway through a word after a query failure, that word is
+left alone until the next separator rather than converting only its tail.
+Historical platform validation below describes upstream releases, not new fork validation.
 
 **What the 0.39.0 pass actually checked (2026-11-04).** Arabic in a
 real session, in the desktop-matrix guest on openbox X11, against xterm

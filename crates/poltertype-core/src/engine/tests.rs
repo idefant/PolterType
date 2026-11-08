@@ -5707,6 +5707,28 @@ mod engine_integration_tests {
         assert_eq!(erase_counts(&h), vec![GHBDSN.len() + 1]);
     }
 
+    #[test]
+    fn window_focus_recovery_mid_word_never_converts_only_the_tail() {
+        let h = window_focus_harness();
+        type_word(&h, &GHBDSN);
+        alt_tab(&h);
+        h.settle();
+        *h.focus.0.lock() = None;
+        type_word(&h, &GHBDSN[..3]);
+        h.settle();
+        *h.focus.0.lock() = Some("window-b".into());
+        type_word(&h, &GHBDSN[3..]);
+        double_shift(&h);
+        assert!(
+            erase_counts(&h).is_empty(),
+            "the untracked prefix must not be left in another layout"
+        );
+        h.tap(SPACE);
+        type_word(&h, &GHBDSN);
+        double_shift(&h);
+        assert_eq!(erase_counts(&h), vec![GHBDSN.len()]);
+    }
+
     /// `Alt+Tab` — the shortcut that hands the keyboard to another window.
     fn alt_tab(h: &Harness) {
         let alt = poltertype_types::Modifiers {
