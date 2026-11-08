@@ -1,5 +1,12 @@
 # <img src="docs/icon.png" width="32" height="32" align="absmiddle" alt=""> PolterType
 
+This fork is based on upstream v0.39.0. It adds window-change buffer resets
+on Hyprland and X11, and
+recognises the `universal-us` / `universal-ru` XKB layout identifiers.
+Fork release artifacts: [Releases](https://github.com/idefant/PolterType/releases).
+The automatic updater still follows upstream releases; keep `[updates] enabled = false`
+when using a fork build to retain these changes.
+
 Cross-platform automatic keyboard layout switcher. Lives in the system
 tray, notices when you start typing in the wrong layout, switches it
 and retypes the last word — like a friendly poltergeist that haunts
@@ -18,7 +25,7 @@ typed on an English layout comes out as `ma;ana` — PolterType fixes the
 word the moment it ends and switches the layout with it, so `por la
 tarde` lands correctly as typed.*
 
-> **Status: v0.39.0**, out of beta since v0.1.0. Windows, macOS and
+> **Status: v0.39.1**, out of beta since v0.1.0. Windows, macOS and
 > Linux (Wayland and X11, on the desktops in the table below) all
 > correct words end to end, and the spelling-suggestions tooltip
 > renders on all three. Installers are **unsigned**, so first launch
@@ -210,6 +217,16 @@ to *Manual only* on the General pane — the same switch as the tray's
 **Pause auto-switch**, and `[general] paused` in `config.toml`.
 PolterType goes on following what you type and corrects nothing on its
 own; the force-switch key converts the last word when you ask it to.
+
+### Changing windows
+
+On Hyprland and X11, changing the active window forgets the tracked word,
+completed-word stash and suggestion from the previous window. The first word
+in the new window can be converted immediately, without a space, click or
+arrow key first. Two windows of the same application are distinct. There is
+no list of navigation shortcuts to configure: the window identity is checked
+before input and correction commands. An unavailable focus query keeps the
+existing tracking rules; it is not treated as a window change.
 
 ### Converting a selection
 

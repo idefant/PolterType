@@ -115,8 +115,12 @@ changing any of that.
 Multi-token triggers also landed in 0.10.0. The word buffer still
 resets at every boundary, so `WordHistory` holds the last few
 completed words alongside it — bounded by length, by the idle timeout
-and by the focused application, because that history is the only place
-the engine keeps more of the user's text than the word being typed.
+and, on Hyprland and X11, by the focused window, because that history is
+the only place the engine keeps more of the user's text than the word being typed.
+A fresh window identity is checked before key dispatch and correction commands;
+a change also drops the current word, last-word stash and suggestion. Window
+titles, executable names and geometry are not identities. A failed query leaves
+the last known identity intact rather than manufacturing a transition.
 
 Two things are intentionally absent. **Case-insensitive matching**:
 triggers are matched exactly, so users can pick tokens that do not

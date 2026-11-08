@@ -1,7 +1,7 @@
 # PolterType — Project Plan
 
 > A living roadmap. Updated as implementation proceeds.
-> Created: 2026-05-02. Last updated: 2026-11-04 (v0.39.0).
+> Created: 2026-05-02. Last updated: 2026-11-08 (v0.39.1).
 
 > **How to read this document.** This is a **plan**, not a description
 > of the implementation: wherever the code has diverged from the
@@ -679,9 +679,13 @@ trimmed to just the name) for:
 - per-app wordlist profiles and smart-command scoping;
 - log metadata.
 
-Buffer reset on focus switch (listed in §3.3) ended up driven by
-pointer clicks and idle timeouts instead of focus transitions — the
-engine only *pulls* focus state at word boundaries.
+Hyprland and X11 additionally expose a fresh `focused_window_id()`.
+The engine checks it before input and correction commands and drops all
+caret-dependent word state on a change, including a shortcut's unfinished-word
+remainder. The application-name cache is bypassed, so the first word in a
+second window of the same process starts independently. Other backends return
+unavailable and retain their existing click/navigation/idle rules. This tracks
+windows, not fields or editor tabs inside one window.
 
 ---
 
@@ -888,7 +892,7 @@ Levels:
 
 ## 10. Roadmap
 
-> **Status as of v0.39.0 (2026-11-04).** Phases 0–8 are, in their core
+> **Status as of v0.39.1 (2026-11-08).** Phases 0–8 are, in their core
 > parts, complete and shipped; `CHANGELOG.md` is the release-by-release
 > record and does not need repeating here. Items that are **not** done
 > are deliberately left as
