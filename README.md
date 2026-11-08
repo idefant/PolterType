@@ -1,10 +1,9 @@
 # <img src="docs/icon.png" width="32" height="32" align="absmiddle" alt=""> PolterType
 
 This fork is based on upstream v0.39.0. It adds window-change buffer resets
-on Hyprland and X11, and
-recognises the `universal-us` / `universal-ru` XKB layout identifiers.
+on Hyprland and X11, and recognises the `universal-us` / `universal-ru` XKB layout identifiers.
 Fork release artifacts: [Releases](https://github.com/idefant/PolterType/releases).
-The automatic updater still follows upstream releases; keep `[updates] enabled = false`
+The automatic updater still follows upstream releases; keep `updates.enabled = false`
 when using a fork build to retain these changes.
 
 Cross-platform automatic keyboard layout switcher. Lives in the system

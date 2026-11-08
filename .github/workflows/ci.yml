@@ -97,13 +97,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          # Only `main` writes caches. Every PR branch gets its own cache
+          # Only `main` and `stable` write caches. Every PR branch gets its own cache
           # scope, so with saving left on, a couple of open PRs push the
           # repo past the 10 GB budget, GitHub evicts least-recently-used
           # entries, and every job is back to "Downloading crates …".
           # PRs still *restore* from main's cache — reads cross from the
           # base branch, writes do not.
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable' }}
           # Without this, a job that fails lint saves nothing — so a
           # broken build also means the next run recompiles every
           # dependency from zero, right when the feedback loop matters.

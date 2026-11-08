@@ -5123,3 +5123,16 @@ with the list even when it is missing from it.
 **Cost:** most unknown English stays as typed on those keyboards; a word put
 right by hand costs a keypress and a word destroyed costs trust. Common
 Arabic letter runs defeat it (`linux`, `debian`).
+
+
+## 2026-11-08 — Window identity owns word tracking
+
+An unfinished-word remainder protects against converting only the tail of a
+word after a shortcut. That remainder is valid only at the original caret:
+a different toplevel must start independent tracking. Hyprland and X11 expose
+a fresh opaque window identity, checked before input and correction commands.
+A transition drops the word, completion stash, phrase history and suggestion;
+a failed query preserves the previous identity. Executable names cannot stand
+in for window identity because one process may own several windows. Fields
+and tabs within one toplevel remain outside this rule, and backends without
+a reliable identity retain their existing conservative tracking.
