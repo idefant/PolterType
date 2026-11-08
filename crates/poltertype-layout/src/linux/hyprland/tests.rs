@@ -136,3 +136,15 @@ fn falls_back_to_first_keyboard_when_no_main_flag() {
     let kbs = parse_keyboards(no_main);
     assert_eq!(choose_current_keymap(&kbs), Some("German"));
 }
+
+#[test]
+fn universal_layout_ids_match_reported_keymap_names() {
+    let configured = parse_csv("universal-us,universal-ru");
+    assert_eq!(
+        configured,
+        vec![
+            keymap_to_layout("English (Universal Layout)"),
+            keymap_to_layout("Russian (Universal Layout)"),
+        ]
+    );
+}

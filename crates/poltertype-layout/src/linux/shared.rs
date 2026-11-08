@@ -33,10 +33,10 @@ pub fn cmd_exists(name: &str) -> bool {
 
 pub fn xkb_to_bcp47(code: &str) -> Option<&'static str> {
     Some(match code {
-        "us" => "en-US",
+        "us" | "universal-us" => "en-US",
         "gb" => "en-GB",
         "ua" => "uk-UA",
-        "ru" => "ru-RU",
+        "ru" | "universal-ru" => "ru-RU",
         "de" => "de-DE",
         "fr" => "fr-FR",
         "es" => "es-ES",
