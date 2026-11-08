@@ -4,6 +4,35 @@ All notable changes to PolterType are recorded here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.39.1] — independent words after changing windows
+
+### Fixed
+
+- On Hyprland and X11, changing the active window drops the previous
+  window's tracked word, unfinished-word remainder, completed-word stash
+  and suggestion. The first word in the new window can be converted
+  immediately with the manual hotkey, including double Shift, without
+  a space, click or arrow key first. The rule uses window identity and
+  also applies to two windows of the same application; it does not
+  depend on an Alt+Tab or Super+Tab shortcut list.
+- Recognise the `universal-us` and `universal-ru` XKB layout identifiers
+  consistently with the English and Russian keymap display names.
+
+### Validation
+
+- The full workspace test suite with all features passed: 1095 tests,
+  zero failures, 12 environment-dependent tests ignored. Formatting,
+  Clippy with warnings denied and the project structure check passed.
+- Ten engine regressions cover manual and automatic conversion,
+  stale-word and stale-suggestion rejection, return to a window,
+  no-focus transitions and unavailable focus queries.
+- Hyprland identity parsing and uncached forwarding have unit coverage.
+  A read-only live Hyprland probe returned 100 fresh identities in 6.2 ms.
+  End-to-end desktop input was not exercised in this release pass.
+- Other focus backends and fields within a single window retain their
+  existing tracking behaviour. The upstream updater is unchanged;
+  fork installations should keep automatic updates disabled.
+
 ## [0.39.0] — Arabic, and the keyboard you really have
 
 ### Added
