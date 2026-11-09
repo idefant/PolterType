@@ -37,6 +37,7 @@
 # `<exe_dir>/../share/poltertype/data` — that's the FHS-shaped
 # location, the third lookup rule.
 #
+# Downloads require curl and jq.
 # Tooling: linuxdeploy + linuxdeploy-plugin-appimage. Both are single
 # AppImages downloaded into `.tools/` on first run and reused on
 # subsequent runs / CI builds with a Cargo cache.
@@ -86,21 +87,14 @@ mkdir -p .tools
 # Pinned to the `continuous` channel — this is the upstream-recommended
 # tag for tools-in-development that don't ship versioned releases.
 # linuxdeploy itself is a stable AppImage at this tag.
-LD_BASE="https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous"
-PLUGIN_BASE="https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous"
-
-if [[ ! -x .tools/linuxdeploy ]]; then
-    echo "fetch: linuxdeploy"
-    curl -fSL -o .tools/linuxdeploy \
-        "${LD_BASE}/linuxdeploy-${ARCH}.AppImage"
-    chmod +x .tools/linuxdeploy
-fi
-if [[ ! -x .tools/linuxdeploy-plugin-appimage ]]; then
-    echo "fetch: linuxdeploy-plugin-appimage"
-    curl -fSL -o .tools/linuxdeploy-plugin-appimage \
-        "${PLUGIN_BASE}/linuxdeploy-plugin-appimage-${ARCH}.AppImage"
-    chmod +x .tools/linuxdeploy-plugin-appimage
-fi
+FETCH_TOOL="$(dirname "$0")/fetch-github-tool.sh"
+for tool in linuxdeploy linuxdeploy-plugin-appimage; do
+    if [[ ! -x ".tools/${tool}" ]]; then
+        echo "fetch: ${tool}"
+        bash "${FETCH_TOOL}" "linuxdeploy/${tool}" continuous \
+            "${tool}-${ARCH}.AppImage" ".tools/${tool}"
+    fi
+done
 
 # Ubuntu / Debian GitHub runners run AppImages directly (FUSE is
 # preinstalled). No-op outside CI; harmless inside.

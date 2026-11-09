@@ -103,8 +103,11 @@ jobs:
             libxkbcommon-dev libxkbcommon-x11-dev \
             libwayland-dev libx11-dev libxi-dev libxtst-dev libxdo-dev \
             libgtk-3-dev libayatana-appindicator3-dev libasound2-dev \
-            file desktop-file-utils \
+            file desktop-file-utils jq \
             cmake libayatana-indicator3-dev libdbusmenu-gtk3-dev
+
+      - name: Test release tool downloads
+        run: python3 installers/linux/test_fetch_github_tool.py
 
       - name: Build release binary
         # `ai,poltertype-ai/remote` ships the AI subsystem compiled in —

@@ -4,6 +4,17 @@ All notable changes to PolterType are recorded here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.39.3] — resilient AppImage packaging
+
+### Fixed
+
+- AppImage tool downloads retry transient failures and fall back to the
+  official GitHub release asset API if the browser download route fails.
+- Downloads are checked for an ELF header and saved atomically, so failed
+  or invalid responses cannot become cached executable tools.
+- Linux release jobs run offline regressions for successful downloads,
+  persistent gateway failures, invalid responses and partial-file cleanup.
+
 ## [0.39.2] — input belongs to the menu too
 
 ### Fixed
