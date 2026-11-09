@@ -186,3 +186,42 @@ pub(crate) fn parse_active_window_id(reply: &str) -> Option<String> {
         .filter(|id| *id != 0)?;
     Some(format!("hyprland:{address:x}"))
 }
+
+/// Read only compositor-owned identities; no callbacks, binds or config changes.
+pub(crate) fn keyboard_context_reply() -> Option<String> {
+    socket_request(&socket_path()?, super::consts::KEYBOARD_CONTEXT_QUERY).ok()
+}
+
+pub(crate) fn parse_keyboard_context(reply: &str) -> Option<String> {
+    let reply = reply.trim();
+    if reply == "none" {
+        return Some(String::new());
+    }
+    let (kind, ids) = reply.split_once(':')?;
+    if !matches!(kind, "window" | "layers") {
+        return None;
+    }
+    let mut ids = ids
+        .split(',')
+        .map(|id| {
+            u64::from_str_radix(id.strip_prefix("0x").unwrap_or(id), 16)
+                .ok()
+                .filter(|id| *id != 0)
+        })
+        .collect::<Option<Vec<_>>>()?;
+    if ids.is_empty() || (kind == "window" && ids.len() != 1) {
+        return None;
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    let ids = ids
+        .into_iter()
+        .map(|id| format!("{id:x}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    Some(if kind == "window" {
+        format!("hyprland:{ids}")
+    } else {
+        format!("hyprland-layers:{ids}")
+    })
+}

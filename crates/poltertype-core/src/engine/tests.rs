@@ -281,13 +281,19 @@ mod engine_integration_tests {
     }
 
     #[derive(Default)]
-    struct MockWindowFocus(Mutex<Option<String>>);
+    struct MockWindowFocus(
+        Mutex<Option<String>>,
+        Mutex<Option<Arc<dyn poltertype_input::FocusTracker>>>,
+    );
 
     impl poltertype_input::FocusTracker for MockWindowFocus {
         fn focused_exe(&self) -> Option<String> {
             Some("same-application".into())
         }
         fn focused_window_id(&self) -> Option<String> {
+            if let Some(live) = self.1.lock().as_ref() {
+                return live.focused_window_id();
+            }
             self.0.lock().clone()
         }
         fn backend_name(&self) -> &'static str {
@@ -5727,6 +5733,199 @@ mod engine_integration_tests {
         type_word(&h, &GHBDSN);
         double_shift(&h);
         assert_eq!(erase_counts(&h), vec![GHBDSN.len()]);
+    }
+
+    #[test]
+    #[ignore = "requires an isolated nested Wayland session and a Quickshell fixture"]
+    fn live_exclusive_layer_menu_keeps_the_first_word_convertible() {
+        use std::process::Command;
+        let status = Command::new("hyprctl")
+            .args(["status"])
+            .output()
+            .expect("nested compositor");
+        let status = String::from_utf8(status.stdout)
+            .expect("status UTF-8")
+            .to_ascii_lowercase();
+        assert!(
+            status.contains("backend: wayland"),
+            "refuse input on a non-nested compositor"
+        );
+        let pid = std::env::var("POLTERTYPE_LAYER_TEST_PID").expect("fixture PID required");
+        let ipc = |method: &str| {
+            let out = Command::new("qs")
+                .args(["ipc", "--pid", &pid, "call", "poltertype_e2e", method])
+                .output()
+                .expect("fixture IPC");
+            assert!(
+                out.status.success(),
+                "fixture IPC failed: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+            String::from_utf8(out.stdout)
+                .expect("UTF-8")
+                .trim()
+                .to_owned()
+        };
+        let type_text = |text: &str| {
+            assert!(
+                Command::new("wtype")
+                    .arg(text)
+                    .status()
+                    .expect("nested wtype")
+                    .success()
+            );
+        };
+        ipc("resetEditor");
+        let live_focus = poltertype_input::create_focus_tracker(false);
+        let ready_by = Instant::now() + Duration::from_secs(3);
+        while !live_focus
+            .focused_window_id()
+            .is_some_and(|id| id.starts_with("hyprland:"))
+        {
+            assert!(
+                Instant::now() < ready_by,
+                "the old menu still owns keyboard input"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        std::thread::sleep(Duration::from_millis(50));
+        let h = Harness::start_gated(
+            60_000,
+            MockEmitter::default(),
+            false,
+            None,
+            Some(vec![Box::new(NoOpinionDetector)]),
+            None,
+            |_| {},
+            None,
+            poltertype_input::KeyGate::disabled(),
+            ["en-US", "ru-RU"],
+        );
+        struct LegacyWindowFocus;
+        impl poltertype_input::FocusTracker for LegacyWindowFocus {
+            fn focused_exe(&self) -> Option<String> {
+                None
+            }
+            fn focused_window_id(&self) -> Option<String> {
+                let out = Command::new("hyprctl")
+                    .args(["repl", "return hl.get_active_window().address"])
+                    .output()
+                    .ok()?;
+                Some(format!(
+                    "legacy:{}",
+                    String::from_utf8(out.stdout).ok()?.trim()
+                ))
+            }
+            fn backend_name(&self) -> &'static str {
+                "legacy-activewindow-only"
+            }
+        }
+        let legacy = std::env::var_os("POLTERTYPE_LAYER_TEST_LEGACY").is_some();
+        *h.focus.1.lock() = Some(if legacy {
+            Arc::new(LegacyWindowFocus)
+        } else {
+            live_focus
+        });
+        *h.switcher.current.lock() = LayoutId::from("ru-RU");
+        h.cmd_tx
+            .send(EngineCommand::SetPaused(true))
+            .expect("engine alive");
+        h.cmd_tx
+            .send(EngineCommand::SetKeystreamHotkeys(KeystreamHotkeys {
+                grabbed: [None, None],
+                pause: None,
+                switch_last: Some(Binding::Mods(ModChord {
+                    mods: ModSet {
+                        shift: true,
+                        ..ModSet::NONE
+                    },
+                    double_tap: true,
+                })),
+            }))
+            .expect("engine alive");
+        let word = [0x1E, 0x1F, 0x20, 0x21];
+        type_text("фыва");
+        type_word(&h, &word);
+        h.settle();
+        assert_eq!(ipc("editorText"), "фыва");
+        let before = Command::new("hyprctl")
+            .args(["repl", "return hl.get_active_window().address"])
+            .output()
+            .expect("window query");
+        let before = String::from_utf8(before.stdout).expect("address UTF-8");
+        alt_tab(&h);
+        h.settle();
+        ipc("openMenu");
+        std::thread::sleep(Duration::from_millis(300));
+        let after = Command::new("hyprctl")
+            .args(["repl", "return hl.get_active_window().address"])
+            .output()
+            .expect("window query");
+        let after = String::from_utf8(after.stdout).expect("address UTF-8");
+        assert_eq!(before, after, "exercise a layer, not a new toplevel");
+        type_text("фыва");
+        type_word(&h, &word);
+        assert_eq!(ipc("menuText"), "фыва");
+        double_shift(&h);
+        let event = h.wait_for(|e| matches!(e, SwitcherEvent::Corrected { .. }));
+        let SwitcherEvent::Corrected { corrected_text, .. } = event else {
+            unreachable!()
+        };
+        assert_eq!(corrected_text, "asdf");
+        assert_eq!(erase_counts(&h), vec![4]);
+        for _ in 0..4 {
+            assert!(
+                Command::new("wtype")
+                    .args(["-k", "BackSpace"])
+                    .status()
+                    .expect("nested erase")
+                    .success()
+            );
+        }
+        type_text(&corrected_text);
+        assert_eq!(ipc("menuText"), "asdf");
+        assert_eq!(
+            ipc("editorText"),
+            "фыва",
+            "the editor must remain unchanged"
+        );
+        ipc("closeMenu");
+        h.settle();
+        type_text(" ");
+        h.tap(SPACE);
+        *h.switcher.current.lock() = LayoutId::from("ru-RU");
+        type_text("фы");
+        type_word(&h, &word[..2]);
+        h.settle();
+        ipc("showPassive");
+        type_text("ва");
+        type_word(&h, &word[2..]);
+        assert_eq!(ipc("editorText"), "фыва фыва");
+        double_shift(&h);
+        assert_eq!(
+            erase_counts(&h),
+            vec![4, 4],
+            "a noninteractive overlay must not split the word"
+        );
+        let event = h.wait_for(|e| matches!(e, SwitcherEvent::Corrected { .. }));
+        let SwitcherEvent::Corrected { corrected_text, .. } = event else {
+            unreachable!()
+        };
+        assert_eq!(corrected_text, "asdf");
+        for _ in 0..4 {
+            assert!(
+                Command::new("wtype")
+                    .args(["-k", "BackSpace"])
+                    .status()
+                    .expect("nested erase")
+                    .success()
+            );
+        }
+        type_text(&corrected_text);
+        assert_eq!(ipc("editorText"), "фыва asdf");
+        println!(
+            "exclusive layer: фыва -> asdf; regular window unchanged; passive overlay does not reset input"
+        );
     }
 
     /// `Alt+Tab` — the shortcut that hands the keyboard to another window.

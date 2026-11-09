@@ -1,12 +1,14 @@
 //! Hyprland focus tracker.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::focus::{CaretHint, FocusTracker, FocusedWindowGeometry};
 
 use super::atspi_caret::AtspiCaretWatcher;
 use super::hyprland_ipc::{
-    active_window_reply, parse_active_window, parse_active_window_id, parse_active_window_rect,
+    active_window_reply, keyboard_context_reply, parse_active_window, parse_active_window_id,
+    parse_active_window_rect, parse_keyboard_context,
 };
 use super::proc_exe::exe_basename_for_pid;
 use super::types::CaretSample;
@@ -19,11 +21,15 @@ pub(crate) struct HyprlandFocusTracker {
     /// Shared AT-SPI caret watcher; `None` when the a11y bus is
     /// unavailable (the tooltip then anchors to the window).
     caret: Option<Arc<AtspiCaretWatcher>>,
+    context_query_supported: AtomicBool,
 }
 
 impl HyprlandFocusTracker {
     pub(crate) fn new(caret: Option<Arc<AtspiCaretWatcher>>) -> Self {
-        Self { caret }
+        Self {
+            caret,
+            context_query_supported: AtomicBool::new(false),
+        }
     }
 }
 
@@ -35,6 +41,18 @@ impl FocusTracker for HyprlandFocusTracker {
     }
 
     fn focused_window_id(&self) -> Option<String> {
+        if let Some(context) = keyboard_context_reply()
+            .as_deref()
+            .and_then(parse_keyboard_context)
+        {
+            self.context_query_supported.store(true, Ordering::Relaxed);
+            return Some(context);
+        }
+        // After a successful layer-aware query, an outage is unknown focus,
+        // not a move back to the window underneath the still-open menu.
+        if self.context_query_supported.load(Ordering::Relaxed) {
+            return None;
+        }
         parse_active_window_id(&active_window_reply()?)
     }
 

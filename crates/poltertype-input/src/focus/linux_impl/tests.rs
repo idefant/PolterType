@@ -385,3 +385,24 @@ fn live_window_identity_is_fresh() {
         start.elapsed()
     );
 }
+
+#[test]
+fn keyboard_context_identifies_exclusive_layers_without_an_active_window_change() {
+    use super::hyprland_ipc::parse_keyboard_context as parse;
+    assert_eq!(parse("window:0x123"), Some("hyprland:123".into()));
+    assert_eq!(parse("layers:0x456"), Some("hyprland-layers:456".into()));
+    assert_ne!(parse("window:0x123"), parse("layers:0x456"));
+    assert_eq!(parse("layers:0x456,0x123"), parse("layers:0x123,0x456"));
+    assert_eq!(parse("none"), Some(String::new()));
+    for reply in [
+        "",
+        "unknown request",
+        "Lua error",
+        "window:0",
+        "layers:",
+        "window:1,2",
+        "layers:0xxyz",
+    ] {
+        assert_eq!(parse(reply), None);
+    }
+}

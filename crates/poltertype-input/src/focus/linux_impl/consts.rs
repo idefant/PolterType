@@ -16,3 +16,7 @@ pub(crate) const FOCUS_CACHE_TTL: Duration = Duration::from_millis(150);
 /// with kate on Hyprland). Window-relative extents stay correct; the
 /// consumer composes them with the compositor's live window rect.
 pub(crate) const COORD_TYPE_WINDOW: u32 = 1;
+
+/// Exclusive top/overlay layers receive keyboard input without replacing
+/// `activewindow`. Noninteractive notifications must not break a word.
+pub(crate) const KEYBOARD_CONTEXT_QUERY: &str = r#"repl if type(hl.get_layers)~="function" or type(hl.get_active_window)~="function" then return "unavailable" end local ids={} for _,l in ipairs(hl.get_layers()) do if l.mapped and l.interactivity==1 and l.layer>=2 then table.insert(ids,l.address) end end table.sort(ids) if #ids>0 then return "layers:"..table.concat(ids,",") end local w=hl.get_active_window() return w and ("window:"..w.address) or "none""#;
