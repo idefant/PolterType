@@ -515,3 +515,26 @@ GitHub Issues — please attach:
 * If the engine's behaviour is surprising, the relevant lines from
   `<config-dir>/poltertype/logs/` (the tray's "Open Logs" entry
   takes you there).
+
+### Isolated layer-shell regression
+
+The ignored `live_exclusive_layer_menu_keeps_the_first_word_convertible`
+test needs Hyprland with the Wayland backend, Quickshell and wtype. Run it
+only inside an already isolated nested Wayland session, with that session's
+`WAYLAND_DISPLAY` and `HYPRLAND_INSTANCE_SIGNATURE`. It refuses a DRM session.
+Start the fixture, pass its PID, then run the test:
+
+```sh
+qs -p scripts/layer-focus-fixture.qml &
+layer_fixture_pid=$!
+sleep 1
+POLTERTYPE_LAYER_TEST_PID="$layer_fixture_pid" cargo test -p poltertype-core \
+  live_exclusive_layer_menu_keeps_the_first_word_convertible -- --ignored --nocapture
+```
+
+The fixture exposes a normal editor, an exclusive layer with a search field,
+and a passive overlay. The engine's key stream and emitter are controlled by
+the harness; the real focus tracker queries the nested compositor. The test
+reads the corrected text from the fixture's IPC, without a clipboard.
+`POLTERTYPE_LAYER_TEST_LEGACY=1` replaces the focus tracker with the old
+window-only view to reproduce the missed conversion.

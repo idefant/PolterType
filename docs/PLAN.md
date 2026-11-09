@@ -1,7 +1,7 @@
 # PolterType — Project Plan
 
 > A living roadmap. Updated as implementation proceeds.
-> Created: 2026-05-02. Last updated: 2026-11-08 (v0.39.1).
+> Created: 2026-05-02. Last updated: 2026-11-09 (v0.39.2).
 
 > **How to read this document.** This is a **plan**, not a description
 > of the implementation: wherever the code has diverged from the
@@ -686,6 +686,10 @@ remainder. The application-name cache is bypassed, so the first word in a
 second window of the same process starts independently. Other backends return
 unavailable and retain their existing click/navigation/idle rules. This tracks
 windows, not fields or editor tabs inside one window.
+On Hyprland, the fresh query also considers mapped keyboard-exclusive top
+and overlay layers through Lua IPC. This covers menu input that leaves
+`activewindow` unchanged, while ignoring passive notifications. The
+regular-window IPC query remains the compatibility fallback.
 
 ---
 
@@ -892,7 +896,7 @@ Levels:
 
 ## 10. Roadmap
 
-> **Status as of v0.39.1 (2026-11-08).** Phases 0–8 are, in their core
+> **Status as of v0.39.2 (2026-11-09).** Phases 0–8 are, in their core
 > parts, complete and shipped; `CHANGELOG.md` is the release-by-release
 > record and does not need repeating here. Items that are **not** done
 > are deliberately left as

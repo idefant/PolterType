@@ -1,4 +1,4 @@
-# Known gaps (as of v0.39.1)
+# Known gaps (as of v0.39.2)
 
 Things a reader of the docs might reasonably assume work, but don't.
 Check here before promising any of them (especially on the website).
@@ -13,12 +13,22 @@ sentence above exists to prevent.
 
 ## What each release pass actually checked
 
+**0.39.2 scope.** Hyprland's Lua IPC API identifies mapped exclusive layers
+on the top/overlay levels as a distinct input context. A live nested test
+uses the real engine and a keyboard-exclusive menu: `фыва` in the window,
+open menu, `фыва`, double Shift, then `asdf` in the menu with the window
+unchanged. A noninteractive overlay does not interrupt the word. Without
+`hl.get_layers()` and `hl.get_active_window()`, the backend falls back to
+regular-window tracking. On-demand layers and compositor-internal grabs
+that expose neither a new window nor an exclusive layer are still outside
+this context query.
+
 **0.39.1 scope.** Window-change reset coverage is limited to Hyprland and
 X11. Other backends still use click, navigation and idle tracking. The new
 identity is queried when input or a correction command arrives; a round trip
 away and back with no sampled input between the transitions is not observed.
-Fields and tabs within a single toplevel, and compositor overlays that do not
-change the reported active window, are outside this reset rule. Transient
+Fields and tabs within a single toplevel remain outside this reset rule.
+The exclusive-layer extension is described in the 0.39.2 scope above. Transient
 focus-query failures preserve the last known identity. If a changed window is
 first identified halfway through a word after a query failure, that word is
 left alone until the next separator rather than converting only its tail.

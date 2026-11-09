@@ -5135,3 +5135,14 @@ a failed query preserves the previous identity. Executable names cannot stand
 in for window identity because one process may own several windows. Fields
 and tabs within one toplevel remain outside this rule, and backends without
 a reliable identity retain their existing conservative tracking.
+
+## 2026-11-09 — Exclusive layers also own input context
+
+A layer-shell menu can take exclusive keyboard input while `activewindow`
+still points at the underlying application. Window identity alone therefore
+cannot release an unfinished-word remainder when a menu opens. On Hyprland,
+query mapped top/overlay layers with exclusive keyboard interactivity through
+read-only Lua IPC. Their opaque addresses form the context when present;
+otherwise use the active window. Noninteractive overlays are excluded, and
+unsupported Lua APIs fall back to the regular-window query. No callbacks,
+bindings, application-name allowlists or compositor configuration are installed.
