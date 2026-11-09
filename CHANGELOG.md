@@ -4,6 +4,28 @@ All notable changes to PolterType are recorded here. The format is
 loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.39.2] — input belongs to the menu too
+
+### Fixed
+
+- Hyprland keyboard-exclusive layer-shell menus now start their own word
+  tracking context even when `activewindow` remains unchanged. The first
+  word in a menu can be converted with double Shift without a click,
+  arrow key or separator. Closing the menu also discards its tracked word.
+- Passive overlays and notifications do not reset typing. Context detection
+  uses mapped exclusive top/overlay surfaces, without shortcut or application
+  allowlists. Hyprland without the Lua query API retains window-only tracking.
+
+### Validation
+
+- Core/input release tests: 593 passed, zero failures, 11 environment-dependent
+  tests ignored. Formatting, Clippy and the structure check pass.
+- An isolated live test reproduces the old failure with a real layer-shell
+  menu and verifies `фыва` → `asdf` in the menu, with the underlying editor
+  unchanged. It also verifies that a passive overlay does not split a word.
+- A reusable Quickshell fixture and ignored integration test exercise the
+  production engine and focus tracker, with controlled input and emission.
+
 ## [0.39.1] — independent words after changing windows
 
 ### Fixed
